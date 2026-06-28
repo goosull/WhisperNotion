@@ -19,6 +19,7 @@ let package = Package(
     products: [
         .library(name: "TranscriptionKit", targets: ["TranscriptionKit"]),
         .library(name: "AudioCapture", targets: ["AudioCapture"]),
+        .library(name: "NotionSync", targets: ["NotionSync"]),
         .executable(name: "wn-validate", targets: ["wn-validate"]),
         .executable(name: "wn-live", targets: ["wn-live"]),
         .executable(name: "WhisperNotionApp", targets: ["WhisperNotionApp"])
@@ -37,6 +38,9 @@ let package = Package(
             name: "AudioCapture",
             dependencies: ["TranscriptionKit"]
         ),
+        .target(
+            name: "NotionSync"
+        ),
         .executableTarget(
             name: "wn-validate",
             dependencies: ["TranscriptionKit"]
@@ -52,6 +56,10 @@ let package = Package(
         .testTarget(
             name: "TranscriptionKitTests",
             dependencies: ["TranscriptionKit"]
+        ),
+        .testTarget(
+            name: "NotionSyncTests",
+            dependencies: ["NotionSync"]
         )
     ]
 )

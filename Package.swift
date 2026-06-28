@@ -16,7 +16,9 @@ let package = Package(
     ],
     products: [
         .library(name: "TranscriptionKit", targets: ["TranscriptionKit"]),
-        .executable(name: "wn-validate", targets: ["wn-validate"])
+        .library(name: "AudioCapture", targets: ["AudioCapture"]),
+        .executable(name: "wn-validate", targets: ["wn-validate"]),
+        .executable(name: "wn-live", targets: ["wn-live"])
     ],
     dependencies: [
         .package(url: "https://github.com/argmaxinc/WhisperKit.git", from: "1.0.0")
@@ -28,9 +30,17 @@ let package = Package(
                 .product(name: "WhisperKit", package: "WhisperKit")
             ]
         ),
+        .target(
+            name: "AudioCapture",
+            dependencies: ["TranscriptionKit"]
+        ),
         .executableTarget(
             name: "wn-validate",
             dependencies: ["TranscriptionKit"]
+        ),
+        .executableTarget(
+            name: "wn-live",
+            dependencies: ["TranscriptionKit", "AudioCapture"]
         ),
         .testTarget(
             name: "TranscriptionKitTests",

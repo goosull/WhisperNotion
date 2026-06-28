@@ -50,6 +50,17 @@ final class RecorderViewModel: ObservableObject {
             return
         }
 
+        // Block re-entry NOW (synchronously). startStream is async, so without
+        // this an extra start() during model load would spin up a SECOND
+        // session on the same mic → every utterance appended twice.
+        isRecording = true
+
+        // Tear down any prior session's resources defensively.
+        consumeTask?.cancel(); consumeTask = nil
+        mic?.stop(); mic = nil
+        queue = nil
+        healthPoll?.cancel(); healthPoll = nil
+
         finalized.removeAll()
         interim = ""
         statusMessage = "음성 모델 준비 중…"
@@ -88,6 +99,7 @@ final class RecorderViewModel: ObservableObject {
             }
 
             for await segment in backend.segments {
+                if Task.isCancelled { break }
                 await MainActor.run { self.apply(segment) }
             }
         }

@@ -30,6 +30,18 @@ public final class MicCapture: @unchecked Sendable {
 
     public func start() throws {
         let input = engine.inputNode
+        // Acoustic echo cancellation: removes the system output (speaker audio)
+        // from the mic, so testing/working on SPEAKERS doesn't bleed the other
+        // party's voice into the [나] track. Best-effort — some setups reject it.
+        try? input.setVoiceProcessingEnabled(true)
+        // AEC otherwise auto-ducks (quiets) what the user is listening to.
+        // Disable that so playback volume stays normal while AEC runs.
+        let ducking = AVAudioVoiceProcessingOtherAudioDuckingConfiguration(
+            enableAdvancedDucking: false,
+            duckingLevel: .min
+        )
+        input.voiceProcessingOtherAudioDuckingConfiguration = ducking
+
         let inputFormat = input.outputFormat(forBus: 0)
         guard inputFormat.sampleRate > 0 else {
             throw TranscriptionError.audioReadFailed("no input device / mic permission denied")

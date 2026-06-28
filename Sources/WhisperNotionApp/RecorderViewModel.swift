@@ -21,9 +21,14 @@ final class RecorderViewModel: ObservableObject {
     private var backend: AppleSpeechBackend?
     private var mic: MicCapture?
     private var consumeTask: Task<Void, Never>?
+    private var systemBackend: AppleSpeechBackend?
+    private var systemTap: SystemAudioTap?
+    private var systemConsumeTask: Task<Void, Never>?
     private var queue: AppendQueue?
     private var healthPoll: Task<Void, Never>?
     private var skipNotionOnce = false
+    /// Whether to also capture system audio (the other speaker → [상대]).
+    @Published var captureSystemAudio = true
 
     private init() {}
 
@@ -58,6 +63,8 @@ final class RecorderViewModel: ObservableObject {
         // Tear down any prior session's resources defensively.
         consumeTask?.cancel(); consumeTask = nil
         mic?.stop(); mic = nil
+        systemConsumeTask?.cancel(); systemConsumeTask = nil
+        systemTap?.stop(); systemTap = nil
         queue = nil
         healthPoll?.cancel(); healthPoll = nil
 
@@ -103,13 +110,46 @@ final class RecorderViewModel: ObservableObject {
                 await MainActor.run { self.apply(segment) }
             }
         }
+
+        // Second, best-effort pipeline: system audio → [상대]. If the process
+        // tap can't start (no consent / unavailable), mic-only still works.
+        guard captureSystemAudio else { return }
+        let sysBackend = AppleSpeechBackend(locale: "ko-KR")
+        self.systemBackend = sysBackend
+        systemConsumeTask = Task { [weak self] in
+            guard let self else { return }
+            do {
+                try await sysBackend.startStream(source: .system)
+            } catch {
+                return
+            }
+            await MainActor.run {
+                let tap = SystemAudioTap(onSamples: { [weak sysBackend] samples in
+                    sysBackend?.feedSamples(samples)
+                })
+                do {
+                    try tap?.start()
+                    self.systemTap = tap
+                } catch {
+                    // System audio unavailable — keep going mic-only.
+                    self.systemTap = nil
+                }
+            }
+            for await segment in sysBackend.segments {
+                if Task.isCancelled { break }
+                await MainActor.run { self.apply(segment) }
+            }
+        }
     }
 
     func stop() {
         guard isRecording else { return }
         mic?.stop()
         mic = nil
+        systemTap?.stop()
+        systemTap = nil
         let backend = self.backend
+        let systemBackend = self.systemBackend
         let queue = self.queue
         isRecording = false
         interim = ""
@@ -117,6 +157,7 @@ final class RecorderViewModel: ObservableObject {
         healthPoll?.cancel()
         Task {
             await backend?.finish()
+            await systemBackend?.finish()
             if let queue {
                 self.notionSync = "Notion에 남은 내용 전송 중…"
                 await queue.flush()

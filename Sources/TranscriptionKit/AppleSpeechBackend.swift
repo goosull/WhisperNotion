@@ -126,10 +126,25 @@ public final class AppleSpeechBackend: TranscriptionBackend, @unchecked Sendable
             var pendingStart = 0.0
             var pendingEnd = 0.0
             var pendingRangeStart = -1.0
-            func emit(_ text: String, start: Double, end: Double, confirmed: Bool) {
+            // Guard: each utterance (identified by its range start) is confirmed
+            // at most once, so a re-finalized result can't append a duplicate.
+            var lastConfirmedRangeStart = -2.0
+            var lastConfirmedText = ""
+            func emitInterim(_ text: String, start: Double, end: Double) {
                 self.segmentsContinuation?.yield(TranscriptSegment(
                     text: text, start: start, end: end,
-                    isConfirmed: confirmed, source: self.streamSource))
+                    isConfirmed: false, source: self.streamSource))
+            }
+            func confirmPending() {
+                guard !pendingText.isEmpty else { return }
+                // Already confirmed this utterance, or it's an exact repeat.
+                if pendingRangeStart == lastConfirmedRangeStart { return }
+                if pendingText == lastConfirmedText { return }
+                self.segmentsContinuation?.yield(TranscriptSegment(
+                    text: pendingText, start: pendingStart, end: pendingEnd,
+                    isConfirmed: true, source: self.streamSource))
+                lastConfirmedRangeStart = pendingRangeStart
+                lastConfirmedText = pendingText
             }
             do {
                 for try await result in transcriber.results {
@@ -137,22 +152,23 @@ public final class AppleSpeechBackend: TranscriptionBackend, @unchecked Sendable
                         .trimmingCharacters(in: .whitespacesAndNewlines)
                     guard !text.isEmpty else { continue }
                     let rs = result.range.start.seconds
-                    if rs > pendingRangeStart + 0.05, !pendingText.isEmpty {
-                        // New utterance started → the previous one is final.
-                        emit(pendingText, start: pendingStart, end: pendingEnd, confirmed: true)
+                    // A genuinely new utterance starts at/after the previous
+                    // one ended. A result whose start falls INSIDE the pending
+                    // utterance's time span is a re-finalization of the same
+                    // utterance → just replace its text, don't emit a duplicate.
+                    if rs >= pendingEnd - 0.1, !pendingText.isEmpty {
+                        confirmPending()
                     }
                     pendingRangeStart = rs
                     pendingText = text
                     pendingStart = rs
                     pendingEnd = result.range.end.seconds
-                    emit(text, start: pendingStart, end: pendingEnd, confirmed: false)
+                    emitInterim(text, start: pendingStart, end: pendingEnd)
                 }
             } catch {
                 // results stream ended (error or finish).
             }
-            if !pendingText.isEmpty {
-                emit(pendingText, start: pendingStart, end: pendingEnd, confirmed: true)
-            }
+            confirmPending()
             self.segmentsContinuation?.finish()
         }
     }

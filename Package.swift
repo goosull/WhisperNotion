@@ -12,13 +12,16 @@ import PackageDescription
 let package = Package(
     name: "WhisperNotion",
     platforms: [
-        .macOS(.v14)
+        // v1 is Apple SpeechAnalyzer-only (macOS 26). The WhisperKit fallback
+        // backend stays in the repo but is not wired into the app.
+        .macOS("26.0")
     ],
     products: [
         .library(name: "TranscriptionKit", targets: ["TranscriptionKit"]),
         .library(name: "AudioCapture", targets: ["AudioCapture"]),
         .executable(name: "wn-validate", targets: ["wn-validate"]),
-        .executable(name: "wn-live", targets: ["wn-live"])
+        .executable(name: "wn-live", targets: ["wn-live"]),
+        .executable(name: "WhisperNotionApp", targets: ["WhisperNotionApp"])
     ],
     dependencies: [
         .package(url: "https://github.com/argmaxinc/WhisperKit.git", from: "1.0.0")
@@ -40,6 +43,10 @@ let package = Package(
         ),
         .executableTarget(
             name: "wn-live",
+            dependencies: ["TranscriptionKit", "AudioCapture"]
+        ),
+        .executableTarget(
+            name: "WhisperNotionApp",
             dependencies: ["TranscriptionKit", "AudioCapture"]
         ),
         .testTarget(

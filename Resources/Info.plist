@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleName</key>
+    <string>WhisperNotion</string>
+    <key>CFBundleDisplayName</key>
+    <string>WhisperNotion</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.seungwonkim.whispernotion</string>
+    <key>CFBundleExecutable</key>
+    <string>WhisperNotionApp</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleShortVersionString</key>
+    <string>0.1.0</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>26.0</string>
+    <!-- Menu-bar only: no Dock icon, no main window. -->
+    <key>LSUIElement</key>
+    <true/>
+    <!-- TCC usage strings (shown in the permission prompts). -->
+    <key>NSMicrophoneUsageDescription</key>
+    <string>WhisperNotion이 회의 음성을 실시간으로 받아 적기 위해 마이크를 사용합니다.</string>
+    <key>NSSpeechRecognitionUsageDescription</key>
+    <string>WhisperNotion이 음성을 로컬에서 텍스트로 변환합니다.</string>
+</dict>
+</plist>

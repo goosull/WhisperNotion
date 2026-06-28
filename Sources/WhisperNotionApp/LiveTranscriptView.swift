@@ -17,17 +17,35 @@ struct LiveTranscriptView: View {
     }
 
     private var header: some View {
-        HStack(spacing: 8) {
-            Circle()
-                .fill(vm.isRecording ? Color.red : Color.secondary)
-                .frame(width: 9, height: 9)
-            Text(vm.statusMessage)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-            Spacer()
-            Button(vm.isRecording ? "정지" : "녹음") { vm.toggle() }
-                .controlSize(.small)
+        VStack(spacing: 4) {
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(vm.isRecording ? Color.red : Color.secondary)
+                    .frame(width: 9, height: 9)
+                Text(vm.statusMessage)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                Spacer()
+                Button {
+                    NotificationCenter.default.post(name: .openWhisperNotionSettings, object: nil)
+                } label: {
+                    Image(systemName: "gearshape")
+                }
+                .buttonStyle(.borderless)
+                .help("설정")
+                Button(vm.isRecording ? "정지" : "녹음") { vm.toggle() }
+                    .controlSize(.small)
+            }
+            if !vm.notionSync.isEmpty {
+                HStack {
+                    Text(vm.notionSync)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                    Spacer()
+                }
+            }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)

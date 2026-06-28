@@ -51,7 +51,7 @@ let package = Package(
         ),
         .executableTarget(
             name: "WhisperNotionApp",
-            dependencies: ["TranscriptionKit", "AudioCapture"]
+            dependencies: ["TranscriptionKit", "AudioCapture", "NotionSync"]
         ),
         .testTarget(
             name: "TranscriptionKitTests",

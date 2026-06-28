@@ -1,5 +1,12 @@
 import Foundation
 
+/// A page the integration can write to.
+public struct NotionPageRef: Sendable, Identifiable, Equatable, Hashable {
+    public let id: String
+    public let title: String
+    public init(id: String, title: String) { self.id = id; self.title = title }
+}
+
 public enum NotionError: Error, Sendable, Equatable {
     case badToken                 // 401
     case pageNotShared            // 404 — page not connected to the integration
@@ -73,6 +80,35 @@ public struct NotionClient: Sendable {
     public func verifyPage(pageID: String) async throws -> String {
         let (data, _) = try await send(request("GET", "pages/\(pageID)"))
         return Self.pageTitle(from: data) ?? "page"
+    }
+
+    /// Pages this integration can see (granted during OAuth / sharing). Used to
+    /// let the user pick a target page instead of pasting a link.
+    public func listPages(limit: Int = 25) async throws -> [NotionPageRef] {
+        let body = try JSONSerialization.data(withJSONObject: [
+            "filter": ["property": "object", "value": "page"],
+            "page_size": limit,
+        ])
+        let (data, _) = try await send(request("POST", "search", body: body))
+        guard let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let results = obj["results"] as? [[String: Any]] else { return [] }
+        return results.compactMap { r in
+            guard let id = r["id"] as? String else { return nil }
+            return NotionPageRef(id: id, title: Self.searchResultTitle(r) ?? "(제목 없음)")
+        }
+    }
+
+    static func searchResultTitle(_ result: [String: Any]) -> String? {
+        if let props = result["properties"] as? [String: Any] {
+            for (_, value) in props {
+                if let v = value as? [String: Any], (v["type"] as? String) == "title",
+                   let arr = v["title"] as? [[String: Any]] {
+                    let t = arr.compactMap { $0["plain_text"] as? String }.joined()
+                    if !t.isEmpty { return t }
+                }
+            }
+        }
+        return nil
     }
 
     /// Append up to 100 blocks to a page/block.

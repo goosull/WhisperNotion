@@ -11,7 +11,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 mkdir -p "$(dirname "$DEST")"
 if [[ -e "$DEST" ]]; then
-    echo "▸ replacing $DEST…"
+    echo "▸ replacing ${DEST}…"
     rm -rf "$DEST"
 fi
 

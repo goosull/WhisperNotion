@@ -32,4 +32,4 @@ codesign --force --sign - \
 
 echo "✓ built: $APP"
 echo "  launch:  open \"$APP\""
-echo "  (first launch prompts for microphone + speech permission)"
+echo "  (microphone is requested from Settings; system audio is opt-in)"

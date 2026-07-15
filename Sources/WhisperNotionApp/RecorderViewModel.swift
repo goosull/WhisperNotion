@@ -33,11 +33,18 @@ final class RecorderViewModel: ObservableObject {
     /// page) instead of silently reusing the last one.
     private var pageJustChosen = false
     /// Whether to also capture system audio (the other speaker → [상대]).
-    @Published var captureSystemAudio = true
+    /// System-audio capture is opt-in. Microphone-only recording works without
+    /// the additional system-audio privacy grant.
+    @Published var captureSystemAudio = UserDefaults.standard.object(forKey: "captureSystemAudio") as? Bool ?? false
 
     private init() {}
 
     func toggle() { isRecording ? stop() : start() }
+
+    func setCaptureSystemAudio(_ enabled: Bool) {
+        captureSystemAudio = enabled
+        UserDefaults.standard.set(enabled, forKey: "captureSystemAudio")
+    }
 
     /// Record without writing to Notion (the page picker's "Notion 없이 녹음").
     func startLocalOnly() {
@@ -60,7 +67,21 @@ final class RecorderViewModel: ObservableObject {
             return
         }
 
+        let permissions = PermissionStore.shared
+        permissions.refresh()
+        guard permissions.microphoneGranted else {
+            statusMessage = "설정에서 ‘내 목소리’ 권한을 허용해 주세요"
+            NotificationCenter.default.post(name: .openWhisperNotionSettings, object: nil)
+            return
+        }
+        if captureSystemAudio && !permissions.systemAudioGranted {
+            statusMessage = "설정에서 ‘상대방 목소리’ 권한을 허용해 주세요"
+            NotificationCenter.default.post(name: .openWhisperNotionSettings, object: nil)
+            return
+        }
+
         let settings = SettingsStore.shared
+        settings.loadNotionSecretsIfNeeded()
         let wantNotion = settings.hasToken && !skipNotionOnce
         // Ask which page on EVERY fresh recording (each meeting has its own
         // page). Only the picker → startWithChosenPage path skips this.

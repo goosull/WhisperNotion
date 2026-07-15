@@ -11,7 +11,13 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
-            Section("1. Notion OAuth 통합 만들기") {
+            Section {
+                PermissionSetupView()
+            } header: {
+                Label("녹음 권한", systemImage: "checkmark.shield")
+            }
+
+            Section("Notion 연결 (선택)") {
                 Text("회사 워크스페이스는 내부 토큰을 막아두므로 OAuth로 연결합니다. notion.so/my-integrations 에서 통합을 만들 때 **OAuth**를 선택하고, 아래 Redirect URI를 그대로 등록하세요. (만들 수 없으면 개인 워크스페이스에서 만든 뒤 회사 페이지에 권한을 부여하면 됩니다.)")
                     .font(.caption).foregroundStyle(.secondary)
                 Button("Integration 설정 열기") {
@@ -32,7 +38,7 @@ struct SettingsView: View {
                 }
             }
 
-            Section("2. 자격 증명") {
+            Section("Notion 자격 증명") {
                 TextField("OAuth client ID", text: $settings.clientID)
                     .textFieldStyle(.roundedBorder)
                 SecureField("OAuth client secret", text: $settings.clientSecret)
@@ -50,7 +56,7 @@ struct SettingsView: View {
                 }
             }
 
-            Section("3. 대상 페이지") {
+            Section("기록할 페이지") {
                 Text("전사를 넣을 페이지를 OAuth 인증 시 선택하거나, 페이지 → ••• → 연결에서 이 통합을 추가하고 링크를 붙여넣으세요.")
                     .font(.caption).foregroundStyle(.secondary)
                 TextField("Notion 페이지 링크", text: $settings.pageURL)
@@ -61,7 +67,7 @@ struct SettingsView: View {
                 }
             }
 
-            Section("4. 종료 시 LLM 요약 (선택)") {
+            Section("종료 시 LLM 요약 (선택)") {
                 Toggle("녹음 종료 시 요약·정리해서 페이지에 추가", isOn: $settings.summaryEnabled)
                     .onChange(of: settings.summaryEnabled) { _, _ in settings.saveLLM() }
 

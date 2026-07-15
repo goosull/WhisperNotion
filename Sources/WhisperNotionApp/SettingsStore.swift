@@ -37,6 +37,9 @@ final class SettingsStore: ObservableObject {
     @Published var llmKey: String
     @Published var summaryEnabled: Bool
 
+    private var notionSecretsLoaded = false
+    private var llmKeyLoaded = false
+
     enum VerifyState: Equatable {
         case unknown
         case checking
@@ -45,15 +48,18 @@ final class SettingsStore: ObservableObject {
     }
 
     private init() {
-        token = KeychainStore.get("notionToken") ?? ""
-        clientSecret = KeychainStore.get("notionClientSecret") ?? ""
+        // Keychain reads are deliberately lazy. Reading a saved item during
+        // app launch can trigger a scary login-keychain prompt before the user
+        // has chosen to connect Notion or enable summaries.
+        token = ""
+        clientSecret = ""
         pageURL = UserDefaults.standard.string(forKey: "notionPageURL") ?? ""
         clientID = UserDefaults.standard.string(forKey: "notionClientID") ?? ""
         selectedPageID = UserDefaults.standard.string(forKey: "notionSelectedPageID") ?? ""
         selectedPageTitle = UserDefaults.standard.string(forKey: "notionSelectedPageTitle") ?? ""
         llmProviderID = UserDefaults.standard.string(forKey: "llmProviderID") ?? LLMClient.presets.first!.id
         llmModel = UserDefaults.standard.string(forKey: "llmModel") ?? ""
-        llmKey = KeychainStore.get("llmKey") ?? ""
+        llmKey = ""
         summaryEnabled = UserDefaults.standard.object(forKey: "summaryEnabled") as? Bool ?? false
     }
 
@@ -69,6 +75,7 @@ final class SettingsStore: ObservableObject {
     /// A client if summary is enabled and credentials are sufficient.
     var llmClient: LLMClient? {
         guard summaryEnabled else { return nil }
+        loadLLMKeyIfNeeded()
         let provider = llmProvider
         if provider.needsKey && llmKey.isEmpty { return nil }
         return LLMClient(baseURL: provider.baseURL, apiKey: llmKey, model: effectiveLLMModel)
@@ -80,6 +87,22 @@ final class SettingsStore: ObservableObject {
         UserDefaults.standard.set(summaryEnabled, forKey: "summaryEnabled")
         if llmKey.isEmpty { KeychainStore.delete("llmKey") }
         else { KeychainStore.set(llmKey, for: "llmKey") }
+        llmKeyLoaded = true
+    }
+
+    /// Load Notion credentials only when the user starts a Notion action.
+    func loadNotionSecretsIfNeeded() {
+        guard !notionSecretsLoaded else { return }
+        guard token.isEmpty, clientSecret.isEmpty else { return }
+        notionSecretsLoaded = true
+        token = KeychainStore.get(tokenAccount) ?? ""
+        clientSecret = KeychainStore.get(secretAccount) ?? ""
+    }
+
+    private func loadLLMKeyIfNeeded() {
+        guard !llmKeyLoaded, llmKey.isEmpty else { return }
+        llmKeyLoaded = true
+        llmKey = KeychainStore.get("llmKey") ?? ""
     }
 
     var hasToken: Bool { !token.isEmpty }
@@ -100,7 +123,8 @@ final class SettingsStore: ObservableObject {
     }
 
     func fetchPages() async throws -> [NotionPageRef] {
-        try await NotionClient(token: token).listPages()
+        loadNotionSecretsIfNeeded()
+        return try await NotionClient(token: token).listPages()
     }
 
     func save() {
@@ -110,6 +134,7 @@ final class SettingsStore: ObservableObject {
         else { KeychainStore.set(clientSecret, for: secretAccount) }
         UserDefaults.standard.set(pageURL, forKey: pageURLKey)
         UserDefaults.standard.set(clientID, forKey: clientIDKey)
+        notionSecretsLoaded = true
     }
 
     /// Run the OAuth flow (browser → loopback → token) and store the result.
@@ -137,6 +162,7 @@ final class SettingsStore: ObservableObject {
 
     /// Validate the token AND that the page is shared with the integration.
     func verify() async {
+        loadNotionSecretsIfNeeded()
         save()
         guard !token.isEmpty else { verifyState = .error("토큰을 입력하세요"); return }
         guard let pageID else { verifyState = .error("올바른 Notion 페이지 링크가 아닙니다"); return }

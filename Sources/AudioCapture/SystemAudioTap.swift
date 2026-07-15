@@ -31,6 +31,16 @@ public final class SystemAudioTap: @unchecked Sendable {
         self.onSamples = onSamples
     }
 
+    /// Explicitly trigger the macOS system-audio consent flow without starting
+    /// a recording session. The UI uses this after explaining the permission.
+    public static func requestPermission() throws {
+        guard let tap = SystemAudioTap(onSamples: { _ in }) else {
+            throw TranscriptionError.audioReadFailed("system audio tap 초기화 실패")
+        }
+        try tap.start()
+        tap.stop()
+    }
+
     public func start() throws {
         // 1. Mono global tap (all processes, exclude none). Private = not shown
         //    to other apps.

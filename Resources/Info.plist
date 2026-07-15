@@ -26,8 +26,6 @@
     <!-- TCC usage strings (shown in the permission prompts). -->
     <key>NSMicrophoneUsageDescription</key>
     <string>WhisperNotion이 회의 음성을 실시간으로 받아 적기 위해 마이크를 사용합니다.</string>
-    <key>NSSpeechRecognitionUsageDescription</key>
-    <string>WhisperNotion이 음성을 로컬에서 텍스트로 변환합니다.</string>
     <key>NSAudioCaptureUsageDescription</key>
     <string>WhisperNotion이 화상회의 상대방 목소리를 받아 적기 위해 시스템 오디오를 캡처합니다.</string>
 </dict>

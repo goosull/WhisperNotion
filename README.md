@@ -40,9 +40,10 @@ This is currently an unsigned/notarized-free developer build. On first launch, m
 
 4. Paste the integration's client ID and client secret into Settings, then click **Notion 연결**.
 5. Grant the integration access to the pages you want to use.
-6. Start recording and choose a page. The app asks for microphone, speech-recognition, and system-audio permissions on first use.
+6. Open the **녹음 권한** section in Settings and allow only the inputs you want. Microphone is required for recording; system-audio capture is optional and off by default.
+7. Start recording and choose a page.
 
-The app stores the Notion token, OAuth client secret, and optional LLM key in the macOS Keychain. No credentials are included in this repository.
+The app stores the Notion token, OAuth client secret, and optional LLM key in the macOS Keychain. Keychain values are not read when the app launches. No credentials are included in this repository.
 
 ## Optional LLM summaries
 

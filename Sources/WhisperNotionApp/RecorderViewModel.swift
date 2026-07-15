@@ -3,6 +3,7 @@ import SwiftUI
 import TranscriptionKit
 import AudioCapture
 import NotionSync
+import Summarization
 
 /// Drives a live recording session: starts the Apple streaming backend, pumps
 /// the microphone into it, and publishes finalized segments + the current
@@ -27,6 +28,10 @@ final class RecorderViewModel: ObservableObject {
     private var queue: AppendQueue?
     private var healthPoll: Task<Void, Never>?
     private var skipNotionOnce = false
+    /// Set true only on the start() call that comes straight from the page
+    /// picker, so we ask for a page on EVERY fresh 녹음 (each meeting → its own
+    /// page) instead of silently reusing the last one.
+    private var pageJustChosen = false
     /// Whether to also capture system audio (the other speaker → [상대]).
     @Published var captureSystemAudio = true
 
@@ -37,6 +42,14 @@ final class RecorderViewModel: ObservableObject {
     /// Record without writing to Notion (the page picker's "Notion 없이 녹음").
     func startLocalOnly() {
         skipNotionOnce = true
+        pageJustChosen = true   // bypass the picker (we already decided: no Notion)
+        start()
+    }
+
+    /// Called by the page picker after the user chooses a page → record now.
+    func startWithChosenPage(id: String, title: String) {
+        SettingsStore.shared.selectPage(id: id, title: title)
+        pageJustChosen = true
         start()
     }
 
@@ -49,11 +62,13 @@ final class RecorderViewModel: ObservableObject {
 
         let settings = SettingsStore.shared
         let wantNotion = settings.hasToken && !skipNotionOnce
-        // Notion connected but no page chosen yet → ask first.
-        if wantNotion && settings.pageID == nil {
+        // Ask which page on EVERY fresh recording (each meeting has its own
+        // page). Only the picker → startWithChosenPage path skips this.
+        if wantNotion && !pageJustChosen {
             NotificationCenter.default.post(name: .openWhisperNotionPagePicker, object: nil)
             return
         }
+        pageJustChosen = false
 
         // Block re-entry NOW (synchronously). startStream is async, so without
         // this an extra start() during model load would spin up a SECOND
@@ -161,8 +176,32 @@ final class RecorderViewModel: ObservableObject {
             if let queue {
                 self.notionSync = "Notion에 남은 내용 전송 중…"
                 await queue.flush()
+                await self.appendSummaryIfEnabled(to: queue)
                 self.notionSync = "Notion 동기화 완료"
             }
+        }
+    }
+
+    /// Phase 4: on stop, summarize the transcript with the configured LLM and
+    /// append a structured summary section to the same page.
+    private func appendSummaryIfEnabled(to queue: AppendQueue) async {
+        guard let client = SettingsStore.shared.llmClient else { return }
+        let transcript = transcriptText
+        guard transcript.count > 20 else { return }
+        statusMessage = "요약 생성 중…"
+        do {
+            let sections = try await Summarizer(client: client).summarize(transcript: transcript)
+            guard !sections.isEmpty else { statusMessage = "요약 내용 없음"; return }
+            var blocks = [BlockBuilder.heading("🤖 회의 요약")]
+            for section in sections {
+                blocks.append(BlockBuilder.heading(section.heading))
+                blocks.append(contentsOf: section.bullets.map { BlockBuilder.bullet($0) })
+            }
+            await queue.enqueue(blocks)
+            await queue.flush()
+            statusMessage = "요약까지 완료 — \(finalized.count)개 구절"
+        } catch {
+            statusMessage = "요약 실패(전사는 저장됨): \(error)"
         }
     }
 

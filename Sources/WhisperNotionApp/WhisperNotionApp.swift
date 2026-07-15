@@ -70,10 +70,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         let view = PagePickerView(
             onPick: { [weak self] ref in
-                SettingsStore.shared.selectPage(id: ref.id, title: ref.title)
                 self?.pagePickerWindow?.close()
                 self?.pagePickerWindow = nil
-                RecorderViewModel.shared.start()
+                RecorderViewModel.shared.startWithChosenPage(id: ref.id, title: ref.title)
             },
             onRecordLocal: { [weak self] in
                 self?.pagePickerWindow?.close()

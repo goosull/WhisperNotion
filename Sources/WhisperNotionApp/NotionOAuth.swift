@@ -107,7 +107,7 @@ final class NotionOAuth {
         }
     }
 
-    static func parseCode(fromRequestLine request: String) -> String? {
+    nonisolated static func parseCode(fromRequestLine request: String) -> String? {
         // First line: "GET /callback?code=abc&state=xyz HTTP/1.1"
         guard let firstLine = request.split(separator: "\r\n").first else { return nil }
         let parts = firstLine.split(separator: " ")

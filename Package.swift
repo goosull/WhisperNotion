@@ -2,9 +2,9 @@
 import PackageDescription
 
 // WhisperNotion — local real-time STT → Notion menu-bar app.
-// This package holds the engine-side libraries and the Phase -1 validation CLI.
-// The SwiftUI menu-bar .app target is added later via an Xcode project that
-// depends on these libraries (Info.plist / entitlements / bundle need Xcode).
+// This package holds the engine-side libraries, validation CLIs, and the
+// SwiftUI menu-bar app. The app bundle is assembled by scripts/make-app.sh
+// because SwiftPM does not copy Info.plist or entitlements into the product.
 //
 // Distribution floor is macOS 14.4 (Core Audio process taps). The package
 // platform is .v14; 14.4-specific and macOS 26-specific (Apple SpeechAnalyzer)
@@ -20,6 +20,7 @@ let package = Package(
         .library(name: "TranscriptionKit", targets: ["TranscriptionKit"]),
         .library(name: "AudioCapture", targets: ["AudioCapture"]),
         .library(name: "NotionSync", targets: ["NotionSync"]),
+        .library(name: "Summarization", targets: ["Summarization"]),
         .executable(name: "wn-validate", targets: ["wn-validate"]),
         .executable(name: "wn-live", targets: ["wn-live"]),
         .executable(name: "WhisperNotionApp", targets: ["WhisperNotionApp"])
@@ -41,6 +42,9 @@ let package = Package(
         .target(
             name: "NotionSync"
         ),
+        .target(
+            name: "Summarization"
+        ),
         .executableTarget(
             name: "wn-validate",
             dependencies: ["TranscriptionKit"]
@@ -51,7 +55,7 @@ let package = Package(
         ),
         .executableTarget(
             name: "WhisperNotionApp",
-            dependencies: ["TranscriptionKit", "AudioCapture", "NotionSync"]
+            dependencies: ["TranscriptionKit", "AudioCapture", "NotionSync", "Summarization"]
         ),
         .testTarget(
             name: "TranscriptionKitTests",
@@ -60,6 +64,10 @@ let package = Package(
         .testTarget(
             name: "NotionSyncTests",
             dependencies: ["NotionSync"]
+        ),
+        .testTarget(
+            name: "SummarizationTests",
+            dependencies: ["Summarization"]
         )
     ]
 )

@@ -1,6 +1,7 @@
 import Foundation
 import SwiftUI
 import NotionSync
+import Summarization
 
 /// User-configurable settings: the Notion integration token (Keychain) and the
 /// target page URL (UserDefaults). Exposes a verify step that runs the
@@ -30,6 +31,12 @@ final class SettingsStore: ObservableObject {
 
     let redirectURI = "http://localhost:8127/callback"
 
+    // LLM summary (Phase 4). Provider preset + model + key (Keychain).
+    @Published var llmProviderID: String
+    @Published var llmModel: String
+    @Published var llmKey: String
+    @Published var summaryEnabled: Bool
+
     enum VerifyState: Equatable {
         case unknown
         case checking
@@ -44,6 +51,35 @@ final class SettingsStore: ObservableObject {
         clientID = UserDefaults.standard.string(forKey: "notionClientID") ?? ""
         selectedPageID = UserDefaults.standard.string(forKey: "notionSelectedPageID") ?? ""
         selectedPageTitle = UserDefaults.standard.string(forKey: "notionSelectedPageTitle") ?? ""
+        llmProviderID = UserDefaults.standard.string(forKey: "llmProviderID") ?? LLMClient.presets.first!.id
+        llmModel = UserDefaults.standard.string(forKey: "llmModel") ?? ""
+        llmKey = KeychainStore.get("llmKey") ?? ""
+        summaryEnabled = UserDefaults.standard.object(forKey: "summaryEnabled") as? Bool ?? false
+    }
+
+    var llmProvider: LLMClient.Provider {
+        LLMClient.preset(id: llmProviderID) ?? LLMClient.presets[0]
+    }
+
+    /// Effective model: user override, else the provider's default.
+    var effectiveLLMModel: String {
+        llmModel.isEmpty ? llmProvider.defaultModel : llmModel
+    }
+
+    /// A client if summary is enabled and credentials are sufficient.
+    var llmClient: LLMClient? {
+        guard summaryEnabled else { return nil }
+        let provider = llmProvider
+        if provider.needsKey && llmKey.isEmpty { return nil }
+        return LLMClient(baseURL: provider.baseURL, apiKey: llmKey, model: effectiveLLMModel)
+    }
+
+    func saveLLM() {
+        UserDefaults.standard.set(llmProviderID, forKey: "llmProviderID")
+        UserDefaults.standard.set(llmModel, forKey: "llmModel")
+        UserDefaults.standard.set(summaryEnabled, forKey: "summaryEnabled")
+        if llmKey.isEmpty { KeychainStore.delete("llmKey") }
+        else { KeychainStore.set(llmKey, for: "llmKey") }
     }
 
     var hasToken: Bool { !token.isEmpty }

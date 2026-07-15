@@ -1,4 +1,5 @@
 import SwiftUI
+import Summarization
 
 /// Notion connection setup via OAuth (the path that works for a company
 /// workspace which blocks internal integrations but allows OAuth, like Claude).
@@ -57,6 +58,34 @@ struct SettingsView: View {
                 HStack {
                     Button("연결 테스트") { Task { await settings.verify() } }
                     statusView
+                }
+            }
+
+            Section("4. 종료 시 LLM 요약 (선택)") {
+                Toggle("녹음 종료 시 요약·정리해서 페이지에 추가", isOn: $settings.summaryEnabled)
+                    .onChange(of: settings.summaryEnabled) { _, _ in settings.saveLLM() }
+
+                if settings.summaryEnabled {
+                    Picker("제공자", selection: $settings.llmProviderID) {
+                        ForEach(LLMClient.presets, id: \.id) { p in
+                            Text(p.name).tag(p.id)
+                        }
+                    }
+                    .onChange(of: settings.llmProviderID) { _, _ in settings.saveLLM() }
+
+                    Text(settings.llmProvider.privacyNote)
+                        .font(.caption).foregroundStyle(.secondary)
+
+                    if settings.llmProvider.needsKey {
+                        SecureField("API 키", text: $settings.llmKey)
+                            .textFieldStyle(.roundedBorder)
+                            .onSubmit { settings.saveLLM() }
+                    }
+                    TextField("모델 (비우면 기본: \(settings.llmProvider.defaultModel))", text: $settings.llmModel)
+                        .textFieldStyle(.roundedBorder)
+                        .onSubmit { settings.saveLLM() }
+                    Button("저장") { settings.saveLLM() }
+                        .controlSize(.small)
                 }
             }
         }
